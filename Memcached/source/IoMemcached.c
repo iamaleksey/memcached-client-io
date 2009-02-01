@@ -88,7 +88,7 @@ IoObject *IoMemcached_set(IoMemcached *self, IoObject *locals, IoMessage *m)
 	IoSeq *key   = IoMessage_locals_seqArgAt_(m, locals, 0);
 	IoSeq *value = IoMessage_locals_seqArgAt_(m, locals, 1);
 
-	time_t expiration = IoMessage_argCount(m) == 3 ? IoMessage_locals_longArgAt_(m, locals, 2) : 0;
+	time_t expiration = IoMessage_argCount(m) == 3 ? IoMessage_locals_intArgAt_(m, locals, 2) : 0;
 
 	memcached_return rc;
 	rc = memcached_set(DATA(self)->mc,
@@ -108,7 +108,7 @@ IoObject *IoMemcached_add(IoMemcached *self, IoObject *locals, IoMessage *m)
 	IoSeq *key   = IoMessage_locals_seqArgAt_(m, locals, 0);
 	IoSeq *value = IoMessage_locals_seqArgAt_(m, locals, 1);
 
-	time_t expiration = IoMessage_argCount(m) == 3 ? IoMessage_locals_longArgAt_(m, locals, 2) : 0;
+	time_t expiration = IoMessage_argCount(m) == 3 ? IoMessage_locals_intArgAt_(m, locals, 2) : 0;
 
 	memcached_return rc;
 	rc = memcached_add(DATA(self)->mc,
@@ -132,7 +132,7 @@ IoObject *IoMemcached_replace(IoMemcached *self, IoObject *locals, IoMessage *m)
 	IoSeq *key   = IoMessage_locals_seqArgAt_(m, locals, 0);
 	IoSeq *value = IoMessage_locals_seqArgAt_(m, locals, 1);
 
-	time_t expiration = IoMessage_argCount(m) == 3 ? IoMessage_locals_longArgAt_(m, locals, 2) : 0;
+	time_t expiration = IoMessage_argCount(m) == 3 ? IoMessage_locals_intArgAt_(m, locals, 2) : 0;
 
 	memcached_return rc;
 	rc = memcached_replace(DATA(self)->mc,
@@ -151,7 +151,7 @@ IoObject *IoMemcached_replace(IoMemcached *self, IoObject *locals, IoMessage *m)
 	return IOSTATE->ioTrue; // MEMCACHED_SUCCESS
 }
 
-// Requires memcached 1.2.4+. Untested.
+// memcached 1.2.4+
 IoObject *IoMemcached_append(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
 	IoSeq *key   = IoMessage_locals_seqArgAt_(m, locals, 0);
@@ -170,7 +170,7 @@ IoObject *IoMemcached_append(IoMemcached *self, IoObject *locals, IoMessage *m)
 	return IOSTATE->ioTrue;
 }
 
-// Requires memcached 1.2.4+. Untested.
+// memcached 1.2.4+
 IoObject *IoMemcached_prepend(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
 	IoSeq *key   = IoMessage_locals_seqArgAt_(m, locals, 0);
@@ -276,12 +276,12 @@ IoObject *IoMemcached_delete(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
 	IoSeq *key = IoMessage_locals_seqArgAt_(m, locals, 0);
 
-	time_t expiration = IoMessage_argCount(m) == 2 ? IoMessage_locals_longArgAt_(m, locals, 1) : 0;
+	time_t time = IoMessage_argCount(m) == 2 ? IoMessage_locals_intArgAt_(m, locals, 1) : 0;
 
 	memcached_return rc;
 	rc = memcached_delete(DATA(self)->mc,
 		CSTRING(key), IOSEQ_LENGTH(key),
-		expiration
+		time
 	);
 
 	if(rc != MEMCACHED_SUCCESS && rc != MEMCACHED_NOTFOUND)

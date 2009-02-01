@@ -1,8 +1,6 @@
 This is Io client library for memcached, based on c libmemcached (http://tangent.org/552/libmemcached.html).
-Developed and tested against memcached 1.2.2 and libmemcached 0.2.5.
+Developed and tested against memcached 1.2.6 and libmemcached 0.2.5.
 
 TODO:
 1. Saving values other then Sequences
-2. Test append and prepend (both require memcached 1.2.4+)
-3. Write docs
-4. Test everything against memcached 1.2.6
+2. Write docs
