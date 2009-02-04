@@ -1,14 +1,8 @@
 #ifndef IOMemcached_DEFINED
 #define IOMemcached_DEFINED 1
 
-#include "libmemcached/memcached.h"
-
-#include "IoState.h"
 #include "IoObject.h"
-#include "IoNumber.h"
-#include "IoSeq.h"
-#include "IoList.h"
-#include "IoMap.h"
+#include <libmemcached/memcached.h>
 
 #define ISMEMCACHED(self) IoObject_hasCloneFunc_(self, (IoTagCloneFunc *)IoMemcached_rawClone)
 
@@ -48,5 +42,9 @@ IoObject *IoMemcached_decr(IoMemcached *self, IoObject *locals, IoMessage *m);
 
 // Stats
 IoObject *IoMemcached_stats(IoMemcached *self, IoObject *locals, IoMessage *m);
+
+// Serialize/Deserialize
+char *IoMemcached_serialize(IoMemcached *self, IoObject *object, size_t *size, uint32_t *flags);
+IoObject *IoMemcached_deserialize(IoMemcached *self, char *cvalue, size_t size, uint32_t flags);
 
 #endif

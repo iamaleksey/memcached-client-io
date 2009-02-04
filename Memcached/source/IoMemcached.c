@@ -1,6 +1,17 @@
 #include "IoMemcached.h"
+#include "IoState.h"
+#include "IoNumber.h"
+#include "IoSeq.h"
+#include "IoList.h"
+#include "IoMap.h"
 
 #define DATA(self) ((IoMemcachedData*) IoObject_dataPointer(self))
+
+#define _FLAG_SEQUENCE 0
+#define _FLAG_NUMBER   1
+#define _FLAG_NIL      2
+#define _FLAG_BOOLEAN  3
+#define _FLAG_OBJECT   4
 
 IoTag *IoMemcached_newTag(void *state)
 {
@@ -85,17 +96,23 @@ IoObject *IoMemcached_addServer(IoMemcached *self, IoObject *locals, IoMessage *
 // Storage commands
 IoObject *IoMemcached_set(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
-	IoSeq *key   = IoMessage_locals_seqArgAt_(m, locals, 0);
-	IoSeq *value = IoMessage_locals_seqArgAt_(m, locals, 1);
+	IoSeq    *key   = IoMessage_locals_seqArgAt_(m, locals, 0);
+	IoObject *value = IoMessage_locals_quickValueArgAt_(m, locals, 1);
 
 	time_t expiration = IoMessage_argCount(m) == 3 ? IoMessage_locals_intArgAt_(m, locals, 2) : 0;
 
+	uint32_t flags;
+	size_t size;
+	char *cvalue = IoMemcached_serialize(self, value, &size, &flags);
+
 	memcached_return rc;
 	rc = memcached_set(DATA(self)->mc,
-		CSTRING(key),   IOSEQ_LENGTH(key),
-		CSTRING(value), IOSEQ_LENGTH(value),
-		expiration, 0
+		CSTRING(key), IOSEQ_LENGTH(key),
+		cvalue, size,
+		expiration, flags
 	);
+
+	free(cvalue);
 
 	if(rc != MEMCACHED_SUCCESS)
 		IoState_error_(IOSTATE, m, memcached_strerror(DATA(self)->mc, rc));
@@ -105,17 +122,23 @@ IoObject *IoMemcached_set(IoMemcached *self, IoObject *locals, IoMessage *m)
 
 IoObject *IoMemcached_add(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
-	IoSeq *key   = IoMessage_locals_seqArgAt_(m, locals, 0);
-	IoSeq *value = IoMessage_locals_seqArgAt_(m, locals, 1);
+	IoSeq    *key   = IoMessage_locals_seqArgAt_(m, locals, 0);
+	IoObject *value = IoMessage_locals_quickValueArgAt_(m, locals, 1);
 
 	time_t expiration = IoMessage_argCount(m) == 3 ? IoMessage_locals_intArgAt_(m, locals, 2) : 0;
 
+	uint32_t flags;
+	size_t size;
+	char *cvalue = IoMemcached_serialize(self, value, &size, &flags);
+
 	memcached_return rc;
 	rc = memcached_add(DATA(self)->mc,
-		CSTRING(key),   IOSEQ_LENGTH(key),
-		CSTRING(value), IOSEQ_LENGTH(value),
-		expiration, 0
+		CSTRING(key), IOSEQ_LENGTH(key),
+		cvalue, size,
+		expiration, flags
 	);
+
+	free(cvalue);
 
 	if(rc != MEMCACHED_SUCCESS && rc != MEMCACHED_NOTSTORED)
 		IoState_error_(IOSTATE, m, memcached_strerror(DATA(self)->mc, rc));
@@ -129,17 +152,23 @@ IoObject *IoMemcached_add(IoMemcached *self, IoObject *locals, IoMessage *m)
 
 IoObject *IoMemcached_replace(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
-	IoSeq *key   = IoMessage_locals_seqArgAt_(m, locals, 0);
-	IoSeq *value = IoMessage_locals_seqArgAt_(m, locals, 1);
+	IoSeq    *key   = IoMessage_locals_seqArgAt_(m, locals, 0);
+	IoObject *value = IoMessage_locals_quickValueArgAt_(m, locals, 1);
 
 	time_t expiration = IoMessage_argCount(m) == 3 ? IoMessage_locals_intArgAt_(m, locals, 2) : 0;
 
+	uint32_t flags;
+	size_t size;
+	char *cvalue = IoMemcached_serialize(self, value, &size, &flags);
+
 	memcached_return rc;
 	rc = memcached_replace(DATA(self)->mc,
-		CSTRING(key),   IOSEQ_LENGTH(key),
-		CSTRING(value), IOSEQ_LENGTH(value),
-		expiration, 0
+		CSTRING(key), IOSEQ_LENGTH(key),
+		cvalue, size,
+		expiration, flags
 	);
+
+	free(cvalue);
 
 	if(rc != MEMCACHED_SUCCESS && rc != MEMCACHED_NOTSTORED)
 		IoState_error_(IOSTATE, m, memcached_strerror(DATA(self)->mc, rc));
@@ -192,24 +221,24 @@ IoObject *IoMemcached_prepend(IoMemcached *self, IoObject *locals, IoMessage *m)
 // Retrieval commands
 IoObject *IoMemcached_get(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
+	IoObject *key = IoMessage_locals_seqArgAt_(m, locals, 0);
+
 	size_t size;
 	uint32_t flags;
 	memcached_return rc;
 
-	IoObject *key = IoMessage_locals_seqArgAt_(m, locals, 0);
-
-	unsigned char *value;
-	value = (unsigned char*) memcached_get(DATA(self)->mc,
+	char *cvalue;
+	cvalue = memcached_get(DATA(self)->mc,
 		CSTRING(key), IOSEQ_LENGTH(key),
 		&size, &flags, &rc
 	);
 
-	if(value == NULL)
+	if(cvalue == NULL)
 		IoState_error_(IOSTATE, m, memcached_strerror(DATA(self)->mc, rc));
 
-	IoObject *result = IOSEQ(value, size);
+	IoObject *result = IoMemcached_deserialize(self, cvalue, size, flags);
 
-	free(value);
+	free(cvalue);
 
 	return result;
 }
@@ -257,7 +286,7 @@ IoObject *IoMemcached_getMulti(IoMemcached *self, IoObject *locals, IoMessage *m
 	while(returned_value != NULL) {
 		IoMap_rawAtPut(results_map,
 			IoSeq_newSymbolWithData_length_(IOSTATE, returned_key, returned_key_length),
-			IOSEQ((unsigned char *) returned_value, returned_value_length)
+			IoMemcached_deserialize(self, returned_value, returned_value_length, flags)
 		);
 
 		free(returned_value);
@@ -381,4 +410,75 @@ IoObject *IoMemcached_stats(IoMemcached *self, IoObject *locals, IoMessage *m)
 	}
 
 	return results_map;
+}
+
+// Serialize/Deserialize
+char *IoMemcached_serialize(IoMemcached *self, IoObject *object, size_t *size, uint32_t *flags) {
+	char *cvalue;
+
+	if(ISSEQ(object)) {
+		*flags = _FLAG_SEQUENCE;
+		*size = IOSEQ_LENGTH(object);
+		cvalue = (char *) malloc(*size);
+		strncpy(cvalue, CSTRING(object), *size);
+	}
+	else if(ISNUMBER(object)) {
+		*flags = _FLAG_NUMBER;
+		double cnumber = IoNumber_asDouble(object);
+		cvalue = (char *) malloc(128 * sizeof(char));
+		*size = snprintf(cvalue, 127, "%.16f", cnumber);
+	}
+	else if(ISNIL(object)) {
+		*flags = _FLAG_NIL;
+		*size = 3;
+		cvalue = (char *) malloc(3 * sizeof(char));
+		strncpy(cvalue, "nil", 3);
+	}
+	else if(ISBOOL(object)) {
+		*flags = _FLAG_BOOLEAN;
+		*size = 1;
+		cvalue = (char *) malloc(sizeof(char));
+		if(object == IOSTATE->ioTrue)  strncpy(cvalue, "1", 1);
+		if(object == IOSTATE->ioFalse) strncpy(cvalue, "0", 1);
+	}
+	else {
+		*flags = _FLAG_OBJECT;
+		IoMessage *serialize = IoMessage_newWithName_(IOSTATE, IOSYMBOL("serialized"));
+		IoSeq *serialized = IoMessage_locals_performOn_(serialize, NULL, object);
+		*size = IOSEQ_LENGTH(serialized);
+		cvalue = (char *) malloc(*size);
+		strncpy(cvalue, CSTRING(serialized), *size);
+	}
+
+	return cvalue;
+}
+
+IoObject *IoMemcached_deserialize(IoMemcached *self, char *cvalue, size_t size, uint32_t flags) {
+	IoObject *object;
+
+	switch(flags) {
+		case _FLAG_NUMBER:
+			object = IONUMBER(atof(cvalue));
+			break;
+		case _FLAG_NIL:
+			object = IOSTATE->ioNil;
+			break;
+		case _FLAG_BOOLEAN:
+			if(strncmp(cvalue, "1", 1) == 0)
+				object = IOSTATE->ioTrue;
+			else
+				object = IOSTATE->ioFalse;
+			break;
+		case _FLAG_OBJECT:
+			//object = IoState_doCString_(self, cvalue);
+			IoState_pushRetainPool(IOSTATE);
+			IoSeq *serialized = IoSeq_newWithCString_length_(IOSTATE, cvalue, size);
+			object = IoObject_rawDoString_label_(self, serialized, IOSYMBOL("IoMemcached_deserialize"));
+			IoState_popRetainPoolExceptFor_(IOSTATE, object);
+			break;
+		default:
+			object = IoSeq_newWithCString_length_(IOSTATE, cvalue, size);
+	}
+
+	return object;
 }
