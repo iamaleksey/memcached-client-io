@@ -122,7 +122,7 @@ IoObject *IoMemcached_set(IoMemcached *self, IoObject *locals, IoMessage *m)
 
 	uint32_t flags;
 	size_t size;
-	char *cvalue = IoMemcached_serialize(self, value, &size, &flags);
+	char *cvalue = IoMemcached_serialize(self, locals, value, &size, &flags);
 
 	memcached_return rc;
 	rc = memcached_set(DATA(self)->mc,
@@ -154,7 +154,7 @@ IoObject *IoMemcached_add(IoMemcached *self, IoObject *locals, IoMessage *m)
 
 	uint32_t flags;
 	size_t size;
-	char *cvalue = IoMemcached_serialize(self, value, &size, &flags);
+	char *cvalue = IoMemcached_serialize(self, locals, value, &size, &flags);
 
 	memcached_return rc;
 	rc = memcached_add(DATA(self)->mc,
@@ -190,7 +190,7 @@ IoObject *IoMemcached_replace(IoMemcached *self, IoObject *locals, IoMessage *m)
 
 	uint32_t flags;
 	size_t size;
-	char *cvalue = IoMemcached_serialize(self, value, &size, &flags);
+	char *cvalue = IoMemcached_serialize(self, locals, value, &size, &flags);
 
 	memcached_return rc;
 	rc = memcached_replace(DATA(self)->mc,
@@ -503,7 +503,7 @@ IoObject *IoMemcached_stats(IoMemcached *self, IoObject *locals, IoMessage *m)
 }
 
 // Serialize/Deserialize
-char *IoMemcached_serialize(IoMemcached *self, IoObject *object, size_t *size, uint32_t *flags) {
+char *IoMemcached_serialize(IoMemcached *self, IoObject *locals, IoObject *object, size_t *size, uint32_t *flags) {
 	char *cvalue;
 
 	if(ISSEQ(object)) {
@@ -534,7 +534,7 @@ char *IoMemcached_serialize(IoMemcached *self, IoObject *object, size_t *size, u
 	else {
 		*flags = _FLAG_OBJECT;
 		IoMessage *serialize = IoMessage_newWithName_(IOSTATE, IOSYMBOL("serialized"));
-		IoSeq *serialized = IoMessage_locals_performOn_(serialize, NULL, object);
+		IoSeq *serialized = IoMessage_locals_performOn_(serialize, locals, object);
 		*size = IOSEQ_LENGTH(serialized);
 		cvalue = (char *) malloc(*size);
 		strncpy(cvalue, CSTRING(serialized), *size);

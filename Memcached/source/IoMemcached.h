@@ -44,7 +44,7 @@ IoObject *IoMemcached_decr(IoMemcached *self, IoObject *locals, IoMessage *m);
 IoObject *IoMemcached_stats(IoMemcached *self, IoObject *locals, IoMessage *m);
 
 // Serialize/Deserialize
-char *IoMemcached_serialize(IoMemcached *self, IoObject *object, size_t *size, uint32_t *flags);
+char *IoMemcached_serialize(IoMemcached *self, IoObject *locals, IoObject *object, size_t *size, uint32_t *flags);
 IoObject *IoMemcached_deserialize(IoMemcached *self, char *cvalue, size_t size, uint32_t flags);
 
 #endif
