@@ -1,3 +1,14 @@
+//metadoc Memcached Aleksey Yeschenko, 2009
+//metadoc Memcached license BSD revised
+//metadoc Memcached category Caching
+//metadoc Memcached credits Aleksey Yeschenko, 2009
+/*metadoc Memcached description
+<a href="http://www.danga.com/memcached/">memcached</a> is a high-performance,
+distributed memory object caching system, generic in nature,
+but intended for use in speeding up dynamic web applications
+by alleviating database load.
+*/
+
 #include "IoMemcached.h"
 #include "IoState.h"
 #include "IoNumber.h"
@@ -80,7 +91,10 @@ void IoMemcached_free(IoMemcached *self)
 	free(DATA(self));
 }
 
-// addServer
+/*doc Memcached addServer(address)
+Adds a memcached server. address is a "host:port" string, e.g., "127.0.0.1:11211"
+Returns self.
+*/
 IoObject *IoMemcached_addServer(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
 	memcached_server_st *server;
@@ -94,6 +108,11 @@ IoObject *IoMemcached_addServer(IoMemcached *self, IoObject *locals, IoMessage *
 }
 
 // Storage commands
+
+/*doc Memcached set(key, value[, expiration])
+Asks memcached to store the value identified by the key.
+Returns true on success, otherwise raises an exception.
+*/
 IoObject *IoMemcached_set(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
 	IoSeq    *key   = IoMessage_locals_seqArgAt_(m, locals, 0);
@@ -120,6 +139,12 @@ IoObject *IoMemcached_set(IoMemcached *self, IoObject *locals, IoMessage *m)
 	return IOSTATE->ioTrue;
 }
 
+/*doc Memcached add(key, value[, expiration])
+Asks memcached to store the value identified by the key,
+but only if the server *doesn't* already hold data for this key.
+Returns true on success, false in case of a collision.
+Otherwise raises an exception.
+*/
 IoObject *IoMemcached_add(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
 	IoSeq    *key   = IoMessage_locals_seqArgAt_(m, locals, 0);
@@ -150,6 +175,12 @@ IoObject *IoMemcached_add(IoMemcached *self, IoObject *locals, IoMessage *m)
 	return IOSTATE->ioTrue; // MEMCACHED_SUCCESS
 }
 
+/*doc Memcached replace(key, value[, expiration])
+Asks memcached to store the value identified by the key,
+but only if the server *does* already hold data for this key.
+Returns true on success, false if there is already data for this key.
+Otherwise raises an exception.
+*/
 IoObject *IoMemcached_replace(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
 	IoSeq    *key   = IoMessage_locals_seqArgAt_(m, locals, 0);
@@ -180,7 +211,12 @@ IoObject *IoMemcached_replace(IoMemcached *self, IoObject *locals, IoMessage *m)
 	return IOSTATE->ioTrue; // MEMCACHED_SUCCESS
 }
 
-// memcached 1.2.4+
+/*doc Memcached append(key, value)
+Asks memcached to add this value to an existing key after existing value.
+Returns true on success, otherwise raises an exception.
+value should be a Sequence.
+Supported by memcached 1.2.4+
+*/
 IoObject *IoMemcached_append(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
 	IoSeq *key   = IoMessage_locals_seqArgAt_(m, locals, 0);
@@ -199,7 +235,12 @@ IoObject *IoMemcached_append(IoMemcached *self, IoObject *locals, IoMessage *m)
 	return IOSTATE->ioTrue;
 }
 
-// memcached 1.2.4+
+/*doc Memcached prepend(key, value)
+Asks memcached to add this value to an existing key before existing value.
+Returns true on success, otherwise raises an exception.
+value should be a Sequence.
+Supported by memcached 1.2.4+
+*/
 IoObject *IoMemcached_prepend(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
 	IoSeq *key   = IoMessage_locals_seqArgAt_(m, locals, 0);
@@ -219,6 +260,11 @@ IoObject *IoMemcached_prepend(IoMemcached *self, IoObject *locals, IoMessage *m)
 }
 
 // Retrieval commands
+
+/*doc Memcached get(key)
+Asks memcached to retrieve data corresponding to the key.
+Raises "NOT FOUND" if the data is not there.
+*/
 IoObject *IoMemcached_get(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
 	IoObject *key = IoMessage_locals_seqArgAt_(m, locals, 0);
@@ -243,6 +289,13 @@ IoObject *IoMemcached_get(IoMemcached *self, IoObject *locals, IoMessage *m)
 	return result;
 }
 
+/*doc Memcached getMulti(keys)
+Asks memcached to retrieve data corresponding to the list of keys.
+Returns a Map with the results.
+If some of the keys appearing in a retrieval request are not sent back
+by the server in the item list this means that the server does not
+hold items with such keys
+*/
 IoObject *IoMemcached_getMulti(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
 	IoList *keys_list = IoMessage_locals_listArgAt_(m, locals, 0);
@@ -301,6 +354,15 @@ IoObject *IoMemcached_getMulti(IoMemcached *self, IoObject *locals, IoMessage *m
 }
 
 // Delete and flushAll
+
+/*doc Memcached delete(key[, time])
+Asks memcached to delete an item with the given key.
+time is the amount of time in seconds (or Unix time until which)
+the client wishes the server to refuse "add" and "replace" commands
+with this key.
+Returns true on success, false if there is no item with the given key.
+Otherwise raises an exception.
+*/
 IoObject *IoMemcached_delete(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
 	IoSeq *key = IoMessage_locals_seqArgAt_(m, locals, 0);
@@ -322,6 +384,12 @@ IoObject *IoMemcached_delete(IoMemcached *self, IoObject *locals, IoMessage *m)
 	return IOSTATE->ioTrue; // MEMCACHED_SUCCESS
 }
 
+
+/*doc Memcached flushAll([expiration])
+Asks memcached to invalidate all existing items immediately (by default)
+or after the expiration specified.
+Always returns true.
+*/
 IoObject *IoMemcached_flushAll(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
 	time_t expiration = IoMessage_argCount(m) == 1 ? IoMessage_locals_intArgAt_(m, locals, 0) : 0;
@@ -330,6 +398,15 @@ IoObject *IoMemcached_flushAll(IoMemcached *self, IoObject *locals, IoMessage *m
 }
 
 // Increment/Decrement
+
+/*doc Memcached incr([offset])
+Asks memcached to increment data for some item in place. The data for the item is
+treated as decimal representation of a 64-bit unsigned integer. If the
+current data value does not conform to such a representation, the
+commands behave as if the value were 0.
+Default offset is 1.
+Returns the new value.
+*/
 IoObject *IoMemcached_incr(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
 	IoSeq *key = IoMessage_locals_seqArgAt_(m, locals, 0);
@@ -350,6 +427,14 @@ IoObject *IoMemcached_incr(IoMemcached *self, IoObject *locals, IoMessage *m)
 	return IONUMBER(new_value);
 }
 
+/*doc Memcached decr([offset])
+Asks memcached to decrement data for some item in place. The data for the item is
+treated as decimal representation of a 64-bit unsigned integer. If the
+current data value does not conform to such a representation, the
+commands behave as if the value were 0.
+Default offset is 1.
+Returns the new value.
+*/
 IoObject *IoMemcached_decr(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
 	IoSeq *key = IoMessage_locals_seqArgAt_(m, locals, 0);
@@ -371,6 +456,11 @@ IoObject *IoMemcached_decr(IoMemcached *self, IoObject *locals, IoMessage *m)
 }
 
 // Stats
+
+/*doc Memcached stats
+Returns a Map with servers' statistics. Keys are server addresses,
+values are maps with actual stats.
+*/
 IoObject *IoMemcached_stats(IoMemcached *self, IoObject *locals, IoMessage *m)
 {
 	IoMap *results_map = IoMap_new(IOSTATE);
