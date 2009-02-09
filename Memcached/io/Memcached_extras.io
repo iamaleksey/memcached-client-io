@@ -31,7 +31,7 @@ Memcached do(
 	Same as Memcached set, but returns self.
 	*/
 	atPut := method(key, value, expiration,
-		set(key, value, expiration)
+		set(key, value, if(expiration == nil, 0, expiration))
 		self
 	)
 
